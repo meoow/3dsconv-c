@@ -13,6 +13,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(__GNUC__) && !defined(__APPLE__)
+#define fseeko fseeko64
+#define ftello ftello64
+#endif
+
 #ifdef _MSC_VER
 #define fseeko64 _fseeki64
 #define ftello64 _ftelli64
@@ -78,7 +83,7 @@ static int read_ncch(NCSDContext *context) {
     FILE *fd = (FILE *)context->fd;
     uint64_t offset = (uint64_t)context->header.partition_geometry[0].offset * MEDIA_UNIT_SIZE;
     uint64_t size = (uint64_t)context->header.partition_geometry[0].offset * MEDIA_UNIT_SIZE;
-    fseeko64(fd, offset, SEEK_SET);
+    fseeko(fd, offset, SEEK_SET);
     fread(&context->ncch, sizeof(NCCHHeader), 1, fd);
     if (memcmp(context->ncch.magic, "NCCH", 4) != 0)
         return NCSD_INVALID_NCCH_HEADER;
@@ -113,7 +118,7 @@ void ncsd_close(NCSDContext *context) {
 void ncsd_read_exefs_header(NCSDContext *context, ExeFSHeader *header) {
     uint64_t offset = (uint64_t)(context->header.partition_geometry[0].offset + context->ncch.exefs_offset) * MEDIA_UNIT_SIZE;
     FILE *fd = (FILE*)context->fd;
-    fseeko64(fd, offset, SEEK_SET);
+    fseeko(fd, offset, SEEK_SET);
     fread(header, sizeof(ExeFSHeader), 1, fd);
     if (context->encrypted) {
         mbedtls_aes_context cont;
@@ -132,7 +137,7 @@ uint8_t *ncsd_decrypt_exefs_file(NCSDContext *context, ExeFSFileHeader *file_hea
     uint64_t offset = (uint64_t)(context->header.partition_geometry[0].offset + context->ncch.exefs_offset) * MEDIA_UNIT_SIZE + sizeof(ExeFSHeader) + file_header->offset;
     uint8_t *data = (uint8_t *)malloc(file_header->size);
     FILE *fd = (FILE*)context->fd;
-    fseeko64(fd, offset, SEEK_SET);
+    fseeko(fd, offset, SEEK_SET);
     fread(data, 1, file_header->size, fd);
     if (context->encrypted) {
         mbedtls_aes_context cont;
@@ -152,7 +157,7 @@ uint8_t *ncsd_decrypt_exefs_file(NCSDContext *context, ExeFSFileHeader *file_hea
 uint64_t ncsd_read_part_start(NCSDContext *context, uint32_t part, size_t offset) {
     uint64_t part_size = (uint64_t)context->header.partition_geometry[part].size * MEDIA_UNIT_SIZE;
     if ((uint64_t)offset > part_size) offset = (size_t)part_size;
-    fseeko64((FILE*)context->fd, (uint64_t)context->header.partition_geometry[part].offset * MEDIA_UNIT_SIZE + offset, SEEK_SET);
+    fseeko((FILE*)context->fd, (uint64_t)context->header.partition_geometry[part].offset * MEDIA_UNIT_SIZE + offset, SEEK_SET);
     return part_size - (uint64_t)offset;
 }
 
